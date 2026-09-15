@@ -1,0 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  tag          String       @unique 
+  firstName    String
+  lastName     String
+  phone        String?
+  avatarUrl    String?
+  passwordHash String?
+  provider     AuthProvider @default(LOCAL)
+  googleId     String?      @unique
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  account        Account?
+  settings       UserSettings?
+  cards          Card[]
+  sessions       Session[]
+  notifications  Notification[]
+  beneficiaries  Beneficiary[] @relation("BeneficiaryOwner")
+  beneficiaryOf  Beneficiary[] @relation("BeneficiaryTarget")
+  sentTransfers  Transfer[]    @relation("TransferSender")
+  receivedTransfers Transfer[] @relation("TransferRecipient")
+
+  @@index([firstName, lastName])
+}
+
+model UserSettings {
+  id                 String  @id @default(uuid())
+  userId             String  @unique
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency           String  @default("NGN")
+  language           String  @default("en")
+  theme              String  @default("light") 
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  transactionAlerts  Boolean @default(true)
+  marketingEmails    Boolean @default(false)
+  twoFactorEnabled   Boolean @default(false)
+  updatedAt          DateTime @updatedAt
+}
+
+model Account {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountNumber String   @unique 
+  currency      String   @default("NGN")
+  balance       Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+model Card {
+  id         String     @id @default(uuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand      String     @default("Visa")
+  last4      String
+  holderName String
+  expMonth   Int
+  expYear    Int
+  status     CardStatus @default(ACTIVE)
+  isDefault  Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+model Beneficiary {
+  id                String   @id @default(uuid())
+  ownerId           String
+  owner             User     @relation("BeneficiaryOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  beneficiaryUserId String
+  beneficiaryUser   User     @relation("BeneficiaryTarget", fields: [beneficiaryUserId], references: [id], onDelete: Cascade)
+  nickname          String?
+  isFavourite       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@unique([ownerId, beneficiaryUserId])
+  @@index([ownerId])
+}
+
+model Transfer {
+  id          String         @id @default(uuid())
+  reference   String         @unique
+  senderId    String
+  sender      User           @relation("TransferSender", fields: [senderId], references: [id])
+  recipientId String
+  recipient   User           @relation("TransferRecipient", fields: [recipientId], references: [id])
+  amount      Decimal        @db.Decimal(18, 2)
+  currency    String         @default("NGN")
+  note        String?
+  status      TransferStatus @default(COMPLETED)
+  failReason  String?
+  createdAt   DateTime       @default(now())
+
+  transactions Transaction[]
+
+  @@index([senderId, createdAt])
+  @@index([recipientId, createdAt])
+}
+
+model Transaction {
+  id                 String          @id @default(uuid())
+  accountId          String
+  account            Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transferId         String?
+  transfer           Transfer?       @relation(fields: [transferId], references: [id])
+  type               TransactionType
+  amount             Decimal         @db.Decimal(18, 2)
+  balanceAfter       Decimal         @db.Decimal(18, 2)
+  description        String
+  counterpartyUserId String?
+  counterpartyName   String?
+  createdAt          DateTime        @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
+}
+
+
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum CardStatus {
+  ACTIVE
+  FROZEN
+  CANCELLED
+}
+
+enum NotificationType {
+  TRANSFER_SENT
+  TRANSFER_RECEIVED
+  BENEFICIARY_ADDED
+  SECURITY
+  SYSTEM
+}
