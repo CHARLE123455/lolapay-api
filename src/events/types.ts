@@ -21,7 +21,7 @@ export interface BeneficiaryAddedEvent {
 }
 
 export interface AuthEvent {
-    type: 'auth.login' | 'auth.password_changed' | 'auth.session_revoked' | 'auth.registered';
+    type: 'auth.registered' | 'auth.login' | 'auth.password_changed' | 'auth.session_revoked';
     userId: string;
     userAgent?: string | null;
     ipAddress?: string | null;

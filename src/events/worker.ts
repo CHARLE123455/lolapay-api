@@ -1,7 +1,7 @@
 import { eventBus } from './bus';
 import { handleEvent } from './handlers';
-import { logger } from '../logger';
-import { prisma } from '../prisma';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 
 async function main() {
     await eventBus.connect();

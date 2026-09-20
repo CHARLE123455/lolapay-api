@@ -1,30 +1,49 @@
 import { createApp } from './app';
-import { env } from './config/env';
-import { logger } from './lib/logger';
-import { prisma } from './lib/prisma';
-import { eventBus } from './events/bus';
-import { handleEvent } from './events/handlers';
+import { env } from './src/config/env';
+import { logger } from './src/lib/logger';
+import { prisma } from './src/lib/prisma';
+import { eventBus } from './src/events/bus';
+import { handleEvent } from './src/events/handlers';
+
+const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 async function main() {
   await prisma.$connect();
   await eventBus.connect();
 
-  if (eventBus.kind === 'memory' || process.env.EMBED_WORKER !== 'false') {
+  if (eventBus.kind === 'memory' || process.env['EMBED_WORKER'] !== 'false') {
     await eventBus.subscribe(handleEvent);
   }
 
-  const app = createApp();
-  const server = app.listen(env.PORT, () => {
+  const server = createApp().listen(env.PORT, () => {
     logger.info(`LolaPay API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
     logger.info(`Google OAuth: ${env.googleEnabled ? 'enabled' : 'disabled'} | Event bus: ${eventBus.kind}`);
   });
 
-  const shutdown = async (signal: string) => {
+  let shuttingDown = false;
+
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger.info(`${signal} received, shutting down`);
-    server.close(async () => {
-      await eventBus.disconnect();
-      await prisma.$disconnect();
-      process.exit(0);
+
+    const forceExit = setTimeout(() => {
+      logger.error('shutdown timed out, forcing exit');
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
+    forceExit.unref();
+
+    server.close(async (err) => {
+      if (err) logger.error(err, 'error while closing server');
+      try {
+        await eventBus.disconnect();
+        await prisma.$disconnect();
+      } catch (cleanupErr) {
+        logger.error(cleanupErr, 'error during shutdown cleanup');
+      } finally {
+        clearTimeout(forceExit);
+        process.exit(0);
+      }
     });
   };
   process.on('SIGINT', () => shutdown('SIGINT'));

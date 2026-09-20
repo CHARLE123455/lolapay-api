@@ -1,22 +1,12 @@
-import express from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import express from 'express';
+import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
-import { env } from './config/env';
-import { prisma } from './lib/prisma';
-import { eventBus } from './events/bus';
-import { errorHandler, notFoundHandler } from './middleware/error';
-import { authRouter } from './modules/auth/auth.routes';
-import { usersRouter } from './modules/users/users.routes';
-import { accountsRouter } from './modules/accounts/accounts.routes';
-import { transactionsRouter } from './modules/transactions/transactions.routes';
-import { transfersRouter } from './modules/transfers/transfers.routes';
-import { beneficiariesRouter } from './modules/beneficiaries/beneficiaries.routes';
-import { cardsRouter } from './modules/cards/cards.routes';
-import { sessionsRouter } from './modules/sessions/sessions.routes';
-import { notificationsRouter } from './modules/notifications/notifications.routes';
+import { env } from './src/config/env';
+import { errorHandler, notFoundHandler } from './src/middleware/error';
+import { apiRouter } from './src/routes';
 
 export function createApp() {
     const app = express();
@@ -26,7 +16,6 @@ export function createApp() {
     app.use(
         cors({
             origin: (origin, cb) => {
-                // allow non-browser clients (Postman, mobile) and whitelisted origins
                 if (!origin || env.corsOrigins.includes(origin) || env.corsOrigins.includes('*')) return cb(null, true);
                 return cb(new Error(`Origin ${origin} not allowed by CORS`));
             },
@@ -38,34 +27,8 @@ export function createApp() {
     if (env.NODE_ENV !== 'test') app.use(morgan(env.isProd ? 'combined' : 'dev'));
     app.use(rateLimit({ windowMs: 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
 
-    app.get('/', (_req, res) => res.json({ name: 'LolaPay API', version: '1.0.0', docs: '/api/v1/health' }));
-    app.get('/api/v1/health', async (_req, res) => {
-        let db = 'ok';
-        try {
-            await prisma.$queryRaw`SELECT 1`;
-        } catch {
-            db = 'down';
-        }
-        res.status(db === 'ok' ? 200 : 503).json({
-            status: db === 'ok' ? 'ok' : 'degraded',
-            db,
-            eventBus: eventBus.kind,
-            uptime: Math.round(process.uptime()),
-            timestamp: new Date().toISOString(),
-        });
-    });
-
-    const api = express.Router();
-    api.use('/auth', authRouter);
-    api.use('/users', usersRouter);
-    api.use('/accounts', accountsRouter);
-    api.use('/transactions', transactionsRouter);
-    api.use('/transfers', transfersRouter);
-    api.use('/beneficiaries', beneficiariesRouter);
-    api.use('/cards', cardsRouter);
-    api.use('/sessions', sessionsRouter);
-    api.use('/notifications', notificationsRouter);
-    app.use('/api/v1', api);
+    app.get('/', (_req, res) => res.json({ name: 'LolaPay API', version: '1.0.0', health: '/api/v1/health' }));
+    app.use('/api/v1', apiRouter);
 
     app.use(notFoundHandler);
     app.use(errorHandler);
