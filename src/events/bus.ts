@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
-import { Kafka, Producer, Consumer, logLevel } from 'kafkajs';
+import { Kafka, type Producer, type Consumer, logLevel } from 'kafkajs';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
-import { EventHandler, LolaPayEvent } from './types';
+import { type EventHandler, type LolaPayEvent } from './types';
 
 export interface EventBus {
     publish(event: LolaPayEvent): Promise<void>;

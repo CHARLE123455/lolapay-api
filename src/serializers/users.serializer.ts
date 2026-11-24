@@ -7,6 +7,7 @@ export interface PublicUser {
     firstName: string;
     lastName: string;
     fullName: string;
+    role: 'USER' | 'ADMIN';
     phone: string | null;
     avatarUrl: string | null;
     provider: string;
@@ -22,6 +23,7 @@ export function toPublicUser(u: User): PublicUser {
         firstName: u.firstName,
         lastName: u.lastName,
         fullName: `${u.firstName} ${u.lastName}`,
+        role: u.role,
         phone: u.phone,
         avatarUrl: u.avatarUrl,
         provider: u.provider,

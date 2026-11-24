@@ -24,6 +24,7 @@ model User {
   provider     AuthProvider @default(LOCAL)
   googleId     String?      @unique
   isActive     Boolean      @default(true)
+  role         UserRole     @default(USER)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -165,7 +166,10 @@ model Notification {
   @@index([userId, isRead, createdAt])
 }
 
-
+enum UserRole {
+  USER
+  ADMIN
+}
 
 enum AuthProvider {
   LOCAL

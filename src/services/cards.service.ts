@@ -12,7 +12,7 @@ async function findOwned(userId: string, id: string) {
     if (!card) throw notFound('Card not found');
     return card;
 }
-
+  
 export async function list(userId: string) {
     const cards = await prisma.card.findMany({
         where: { userId, ...notCancelled },

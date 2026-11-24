@@ -9,6 +9,7 @@ import { cardsRouter } from './cards.router';
 import { sessionsRouter } from './sessions.router';
 import { notificationsRouter } from './notifications.router';
 import { healthRouter } from './health.router';
+import { adminRouter } from './admin.router';
 
 export const apiRouter = Router();
 
@@ -22,3 +23,5 @@ apiRouter.use('/beneficiaries', beneficiariesRouter);
 apiRouter.use('/cards', cardsRouter);
 apiRouter.use('/sessions', sessionsRouter);
 apiRouter.use('/notifications', notificationsRouter);
+apiRouter.use('/admin', adminRouter);
+
